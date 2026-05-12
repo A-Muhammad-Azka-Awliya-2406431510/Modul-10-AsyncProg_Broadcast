@@ -1,0 +1,67 @@
+use futures_util::sink::SinkExt;
+use futures_util::stream::StreamExt;
+use std::error::Error;
+use std::net::SocketAddr;
+use tokio::net::{TcpListener, TcpStream};
+use tokio::sync::broadcast::{Sender, channel};
+use tokio_websockets::{Message, ServerBuilder, WebSocketStream};
+
+async fn handle_connection(
+    addr: SocketAddr,
+    mut ws_stream: WebSocketStream<TcpStream>,
+    bcast_tx: Sender<String>,
+) -> Result<(), Box<dyn Error + Send + Sync>> {
+    let mut bcast_rx = bcast_tx.subscribe();
+    let sender_tag = format!("{addr}:");
+
+    loop {
+        tokio::select! {
+            maybe_msg = ws_stream.next() => {
+                match maybe_msg {
+                    Some(Ok(msg)) if msg.is_text() => {
+                        let text = msg.as_text().unwrap_or_default();
+                        let outbound = format!("{sender_tag} {text}");
+                        let _ = bcast_tx.send(outbound);
+                    }
+                    Some(Ok(msg)) if msg.is_close() => break,
+                    Some(Ok(_)) => {}
+                    Some(Err(err)) => return Err(Box::new(err)),
+                    None => break,
+                }
+            }
+            recv_result = bcast_rx.recv() => {
+                match recv_result {
+                    Ok(msg) => {
+                        if !msg.starts_with(&sender_tag) {
+                            ws_stream.send(Message::text(msg)).await?;
+                        }
+                    }
+                    Err(tokio::sync::broadcast::error::RecvError::Lagged(_)) => {}
+                    Err(tokio::sync::broadcast::error::RecvError::Closed) => break,
+                }
+            }
+        }
+    }
+
+    Ok(())
+}
+
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
+    let (bcast_tx, _) = channel(16);
+
+    let listener = TcpListener::bind("127.0.0.1:2000").await?;
+    println!("listening on port 2000");
+
+    loop {
+        let (socket, addr) = listener.accept().await?;
+        println!("New connection from {addr:?}");
+        let bcast_tx = bcast_tx.clone();
+        tokio::spawn(async move {
+            // Wrap the raw TCP stream into a websocket.
+            let (_req, ws_stream) = ServerBuilder::new().accept(socket).await?;
+
+            handle_connection(addr, ws_stream, bcast_tx).await
+        });
+    }
+}

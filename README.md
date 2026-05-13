@@ -12,6 +12,4 @@ Pada percobaan ini port websocket diubah dari 2000 menjadi 8080. Perubahan perlu
 
 Pada bagian ini saya menambahkan informasi IP dan port pengirim ke pesan yang dibroadcast, jadi setiap client bisa langsung tahu pesan datang dari koneksi yang mana. Perubahan saya letakkan di server karena server yang menerima pesan asli dari client lalu meneruskannya ke semua koneksi lain, jadi alamat pengirim paling tepat ditambahkan di sana sebelum pesan dikirim ulang. Di sisi client, hasilnya jadi lebih jelas karena pesan dari server tampil bersama identitas pengirim, sementara pesan yang saya kirim sendiri juga bisa langsung terlihat.
 
-## Experiment 2.3: Small changes, add IP and Port
-
 ![sps](img/small_changes.png)

@@ -8,3 +8,4 @@ Program dijalankan dengan membuka satu terminal untuk server memakai cargo run -
 
 Pada percobaan ini port websocket diubah dari 2000 menjadi 8080. Perubahan perlu dilakukan di dua sisi, yaitu di server pada bagian TcpListener::bind("127.0.0.1:8080") dan di client pada bagian ClientBuilder::from_uri(Uri::from_static("ws://127.0.0.1:8080")). Protokol yang dipakai tetap ws, jadi yang berubah hanya nomor port agar alamat koneksi server dan client tetap sama.
 
+![sps](img/small_changes.png)
